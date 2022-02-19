@@ -14,8 +14,10 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.sweeftdigital.musicplayer.common.CacheManager.CURRENT_SONG
 import com.sweeftdigital.musicplayer.common.CacheManager.SONGS_CACHE
 import com.sweeftdigital.musicplayer.common.CacheManager.SONG_POSITION
+import com.sweeftdigital.musicplayer.common.CacheManager.HAS_FINISHED
 import com.sweeftdigital.musicplayer.common.Constants.PERMISSIONS_REQUEST_CODE_READ_EXTERNAL_STORAGE
 import com.sweeftdigital.musicplayer.common.Constants.PLAYING
 import com.sweeftdigital.musicplayer.common.Constants.STOPPED
@@ -37,8 +39,6 @@ class HomeActivity : AppCompatActivity() {
      */
     private lateinit var binding: ActivityHomeBinding
     private lateinit var songsAdapter: SongsAdapter
-    private var hasFinished = false
-    private var currentSong: Song? = null
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var factory: SongsViewModelFactory
     private lateinit var songsViewModel: SongsViewModel
@@ -60,7 +60,7 @@ class HomeActivity : AppCompatActivity() {
         super.onResume()
 
         checkPermissionsThenLoadSongs()
-        setupRecycler(SONGS_CACHE)
+        refreshRecyclerView(false)
     }
 
     private fun initializeViews() {
@@ -82,7 +82,7 @@ class HomeActivity : AppCompatActivity() {
                 cleanUpMediaPlayer()
             }
             SONG_POSITION = getPosition(song)
-            currentSong = SONGS_CACHE[SONG_POSITION]
+            CURRENT_SONG = SONGS_CACHE[SONG_POSITION]
 
             playOrPause(song)
             show("Now Playing: ${song.title}")
@@ -100,24 +100,24 @@ class HomeActivity : AppCompatActivity() {
 
     private fun handleEvents() {
         binding.content.playBtn.setOnClickListener {
-            currentSong?.let { playOrPause(it) } ?: show("Please add some songs first")
+            CURRENT_SONG?.let { playOrPause(it) } ?: show("Please add some songs first")
         }
 
         binding.content.nextBtn.setOnClickListener {
-            if (currentSong != null) {
+            if (CURRENT_SONG != null) {
                 refreshRecyclerView(false)
-                SONG_POSITION = getPosition(currentSong!!) + 1
+                SONG_POSITION = getPosition(CURRENT_SONG) + 1
                 if (SONG_POSITION >= SONGS_CACHE.size) {
                     SONG_POSITION = 0
                 }
-                cleanUpMediaPlayer();
+                cleanUpMediaPlayer()
                 val nextSong = SONGS_CACHE[SONG_POSITION]
                 playOrPause(nextSong)
             }
         }
 
         binding.content.prevBtn.setOnClickListener {
-            if (currentSong != null) {
+            if (CURRENT_SONG != null) {
                 refreshRecyclerView(false)
                 SONG_POSITION--
                 if (SONG_POSITION < 0) {
@@ -127,8 +127,8 @@ class HomeActivity : AppCompatActivity() {
                         0
                     }
                 }
-                cleanUpMediaPlayer()
                 val prevSong = SONGS_CACHE[SONG_POSITION]
+                cleanUpMediaPlayer()
                 playOrPause(prevSong)
             }
         }
@@ -161,14 +161,6 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /**
-     * Setting up a recyclerview
-     * @param songs
-     */
-    private fun setupRecycler(songs: ArrayList<Song>) {
-
-    }
-
-    /**
      * Because we are reading songs from the user's device, we need to ask the user for permissions
      * first at runtime.
      */
@@ -190,7 +182,7 @@ class HomeActivity : AppCompatActivity() {
     }
 
     /**
-     * The following method cleans up the mediaplayer, releasing it's resources from the memory.
+     * The following method cleans up the MediaPlayer, releasing it's resources from the memory.
      */
     private fun cleanUpMediaPlayer() {
         mediaPlayer?.release()
@@ -198,20 +190,21 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun refreshRecyclerView(playing: Boolean) {
-        if (currentSong != null) {
-            currentSong!!.isPlaying = playing
-            SONGS_CACHE[getPosition(currentSong!!)] = currentSong!!
-            songsAdapter.differ.submitList(SONGS_CACHE)
+        CURRENT_SONG?.let {
+            it.isPlaying = playing
+            SONGS_CACHE[getPosition(CURRENT_SONG)] = it
+            val songs = ArrayList(SONGS_CACHE)
+            songsAdapter.differ.submitList(songs)
         }
     }
 
     private fun fetchAllSongs() {
         songsViewModel.loadAllSongs(this).observe(this) { requestCall ->
-            val linkedHashSet: LinkedHashSet<Song> = LinkedHashSet<Song>(requestCall.songs)
+            val linkedHashSet: LinkedHashSet<Song> = LinkedHashSet(requestCall.songs)
             SONGS_CACHE.clear()
             SONGS_CACHE.addAll(linkedHashSet)
-            if (currentSong == null && SONGS_CACHE.size > 0) {
-                currentSong = SONGS_CACHE[0]
+            if (CURRENT_SONG == null && SONGS_CACHE.size > 0) {
+                CURRENT_SONG = SONGS_CACHE[0]
             }
         }
     }
@@ -219,13 +212,13 @@ class HomeActivity : AppCompatActivity() {
     /**
      * If you are given a song object, can you give us it's position. We may need that position
      * so that we know the next song in our playlist. Yes, the following method provides you the position.
-     * @param s
+     * @param song
      * @return
      */
-    private fun getPosition(song: Song): Int {
+    private fun getPosition(song: Song?): Int {
         val pos = 0
         for (s in SONGS_CACHE) {
-            if (song.id.equals(s.id, ignoreCase = true)) {
+            if (song?.id.equals(s.id, ignoreCase = true)) {
                 return SONGS_CACHE.indexOf(song)
             }
         }
@@ -238,14 +231,14 @@ class HomeActivity : AppCompatActivity() {
      */
     private fun getPlayer(): MediaPlayer? {
         if (mediaPlayer == null) {
-            if (currentSong == null) {
-                currentSong = if (SONGS_CACHE.size > 0) {
+            if (CURRENT_SONG == null) {
+                CURRENT_SONG = if (SONGS_CACHE.size > 0) {
                     SONGS_CACHE[0]
                 } else {
                     return null
                 }
             }
-            mediaPlayer = MediaPlayer.create(this, Uri.parse(currentSong!!.data))
+            mediaPlayer = MediaPlayer.create(this, Uri.parse(CURRENT_SONG!!.data))
         }
         return mediaPlayer
     }
@@ -259,14 +252,14 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun playOrPause(song: Song) {
-        currentSong = song
+        CURRENT_SONG = song
 
         if (getPlayer() == null) {
             show("You don't have any song to play.Please add some songs first")
             return
         }
 
-        hasFinished = false
+        HAS_FINISHED = false
 
         if (getPlayer()!!.isPlaying) {
             songsViewModel.pause(getPlayer()!!, this, song).observe(this) { requestCall ->
@@ -295,7 +288,7 @@ class HomeActivity : AppCompatActivity() {
 
     private val runnable = object : Runnable {
         override fun run() {
-            if (!hasFinished) {
+            if (!HAS_FINISHED) {
                 val currentDuration = mediaPlayer?.currentPosition
                 val totalDuration = mediaPlayer?.duration
 
@@ -305,12 +298,12 @@ class HomeActivity : AppCompatActivity() {
 
                 if (binding.content.progressSB.progress >= 99 && !mediaPlayer!!.isPlaying) {
                     binding.content.playBtn.setImageResource(android.R.drawable.ic_media_play)
-                    hasFinished = true
+                    HAS_FINISHED = true
                     songsAdapter.differ.submitList(SONGS_CACHE)
 
                     binding.content.nextBtn.performClick()
                 } else {
-                    hasFinished = false
+                    HAS_FINISHED = false
                 }
                 handler.postDelayed(this, 1000)
             }

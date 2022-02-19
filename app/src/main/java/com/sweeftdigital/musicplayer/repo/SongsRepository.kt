@@ -3,15 +3,14 @@ package com.sweeftdigital.musicplayer.repo
 import android.content.Context
 import android.database.Cursor
 import android.media.MediaPlayer
-import android.net.Uri
 import android.provider.MediaStore
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
-import com.sweeftdigital.musicplayer.model.RequestCall
-import com.sweeftdigital.musicplayer.model.Song
 import com.sweeftdigital.musicplayer.common.Constants.LOADING
 import com.sweeftdigital.musicplayer.common.Constants.PLAYING
 import com.sweeftdigital.musicplayer.common.Constants.STOPPED
+import com.sweeftdigital.musicplayer.model.RequestCall
+import com.sweeftdigital.musicplayer.model.Song
 
 /**
  * SongRepository documentation
@@ -34,7 +33,7 @@ class SongsRepository {
             cursor.getString(3),
             cursor.getString(4),
             cursor.getString(5),
-            false
+            isPlaying = false
         )
     }
 
@@ -81,7 +80,7 @@ class SongsRepository {
 
     /**
      * Play A Song
-     * @param player
+     * @param mediaPlayer
      * @param context
      * @param song
      * @return
@@ -105,7 +104,7 @@ class SongsRepository {
 
     /**
      * Pause a MediaPlayer
-     * @param player
+     * @param mediaPlayer
      * @param context
      * @param song
      * @return
@@ -149,7 +148,7 @@ class SongsRepository {
         val minute = (duration % (1000* 60 * 60)) / (1000 * 60)
         val second = ((duration % (1000* 60 * 60)) % (1000 * 60)) / (1000)
 
-        var finalString = StringBuilder()
+        val finalString = StringBuilder()
         if (hour < 10) {
             finalString.append("0")
         }

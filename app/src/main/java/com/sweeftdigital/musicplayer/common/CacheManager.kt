@@ -9,5 +9,7 @@ import com.sweeftdigital.musicplayer.model.Song
  */
 object CacheManager {
     var SONG_POSITION = 0
+    var HAS_FINISHED = false
+    var CURRENT_SONG: Song? = null
     var SONGS_CACHE = ArrayList<Song>()
 }

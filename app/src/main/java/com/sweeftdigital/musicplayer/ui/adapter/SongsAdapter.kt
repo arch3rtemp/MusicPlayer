@@ -7,23 +7,24 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.TextView
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
+import com.sweeftdigital.musicplayer.common.CacheManager.HAS_FINISHED
+import com.sweeftdigital.musicplayer.common.CacheManager.SONG_POSITION
 import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.sweeftdigital.musicplayer.R
+import com.sweeftdigital.musicplayer.common.CacheManager.CURRENT_SONG
 import com.sweeftdigital.musicplayer.model.Song
 
 class SongsAdapter(private val onClickListener: (Song) -> Unit) : RecyclerView.Adapter<SongsAdapter.SongsHolder>(){
 
     private val differCallback = object : DiffUtil.ItemCallback<Song>() {
         override fun areItemsTheSame(oldItem: Song, newItem: Song): Boolean {
-            return oldItem.id == newItem.id
+            return oldItem == newItem
         }
 
         override fun areContentsTheSame(oldItem: Song, newItem: Song): Boolean {
-            return oldItem == newItem
+            return oldItem != newItem
         }
 
     }
@@ -48,7 +49,7 @@ class SongsAdapter(private val onClickListener: (Song) -> Unit) : RecyclerView.A
 
         fun setData(song: Song, onClickListener: (Song) -> Unit) {
             tvTitle.text = song.title
-            if (song.isPlaying) {
+            if (song.isPlaying && !HAS_FINISHED) {
                 btnPlay.setImageResource(android.R.drawable.ic_media_pause)
                 tvTitle.setTextColor(Color.BLUE)
                 tvTitle.setTypeface(null, Typeface.BOLD)
@@ -56,17 +57,21 @@ class SongsAdapter(private val onClickListener: (Song) -> Unit) : RecyclerView.A
                 btnPlay.setImageResource(android.R.drawable.ic_media_play)
                 tvTitle.setTextColor(Color.BLACK)
                 tvTitle.setTypeface(null, Typeface.NORMAL)
+
+                if (HAS_FINISHED) {
+                    btnPlay.setImageResource(android.R.drawable.ic_media_play)
+                    tvTitle.setTextColor(Color.BLACK)
+                    tvTitle.setTypeface(null, Typeface.NORMAL)
+                } else {
+                    if (CURRENT_SONG!!.id == song.id) {
+                        btnPlay.setImageResource(android.R.drawable.ic_media_play)
+                        tvTitle.setTextColor(Color.BLUE)
+                        tvTitle.setTypeface(null, Typeface.BOLD)
+                    }
+                }
             }
             btnPlay.setOnClickListener {
-                onClickListener.invoke(song)
-
-                if (btnPlay.id == android.R.drawable.ic_media_pause) {
-                    btnPlay.setImageResource(android.R.drawable.ic_media_play)
-                } else {
-                    btnPlay.setImageResource(android.R.drawable.ic_media_pause)
-                }
-                tvTitle.setTextColor(Color.BLUE)
-                tvTitle.setTypeface(null, Typeface.BOLD)
+                onClickListener(song)
             }
         }
     }
